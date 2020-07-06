@@ -140,6 +140,47 @@ def load_strings(dir='/home/iwsatlas1/peller/work/oscNext/level7_v01.04/140000_i
     
     return strings, repeated_params, labels
 
+def load_superstrings(dir='/home/iwsatlas1/peller/work/oscNext/level7_v01.04/140000_i3cols',
+                 labels=['x', 'y', 'z', 'time', 'azimuth','zenith', 'cascade_energy', 'track_energy'],
+                 geo=pkg_resources.resource_filename('freedom', 'resources/geo_array.npy'),
+                 dtype=np.float32):
+    """
+    Create training data for superstringnet (needs optimized at some point)
+    
+    Returns:
+    --------
+    string_charges : ndarray
+        shape (N_events, 86)
+    params : ndarray
+        shape (N_events, len(labels))
+    labels
+    """
+    
+    hits_idx = np.load(os.path.join(dir, 'SRTTWOfflinePulsesDC/index.npy'))
+    hits = np.load(os.path.join(dir, 'SRTTWOfflinePulsesDC/data.npy'))
+    mctree_idx = np.load(os.path.join(dir, 'I3MCTree/index.npy'))
+    mctree = np.load(os.path.join(dir, 'I3MCTree/data.npy'))
+    mcprimary = np.load(os.path.join(dir, 'MCInIcePrimary/data.npy'))
+
+    geo = np.load(geo)
+    
+    # construct strings array
+    # shape N x 86; q values for each string
+    
+    strings = np.zeros(hits_idx.shape + (86,), dtype=dtype)
+
+    # Get charge per event and string
+    for i in range(len(hits_idx)):
+        this_idx = hits_idx[i]
+        this_hits = hits[this_idx['start'] : this_idx['stop']]
+        for j, hit in enumerate(this_hits):
+            s_idx = hit['key']['string'] - 1
+            strings[i, s_idx] += hit['pulse']['charge']
+
+    
+    params = get_params(labels, mcprimary, mctree, mctree_idx)
+    
+    return strings, params, labels
 
 def load_layers(dir='/home/iwsatlas1/peller/work/oscNext/level7_v01.04/140000_i3cols',
                 labels=['x', 'y', 'z', 'time', 'azimuth','zenith', 'cascade_energy', 'track_energy'],

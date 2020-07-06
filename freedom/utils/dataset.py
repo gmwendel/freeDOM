@@ -2,7 +2,7 @@
 import pkg_resources
 import numpy as np
 import tensorflow as tf
-from freedom.utils.i3cols_dataloader import load_hits, load_charges, load_strings
+from freedom.utils.i3cols_dataloader import load_hits, load_charges, load_strings, load_superstrings
 from sklearn.model_selection import train_test_split
 
 
@@ -73,6 +73,23 @@ class Data():
         
         return train, test
         
+    def get_superstringnet_data(self, train_batch_size=1024, test_batch_size=256, shuffle_block_size=2**14, test_size=0.01, random_state=42):
+
+        data = []
+        for dir in self.dirs:
+            data.append(load_superstrings(dir=dir, labels=self.labels))
+        superstring_charges = np.concatenate([d[0] for d in data])
+        params = np.concatenate([d[1] for d in data])
+
+        superstring_train, superstring_test, params_train, params_test = train_test_split(superstring_charges,
+                                                                                params, 
+                                                                                test_size=test_size,
+                                                                                random_state=random_state)
+        
+        train = self.get_dataset(superstring_train, params_train, batch_size=train_batch_size, shuffle_block_size=shuffle_block_size)
+        test = self.get_dataset(superstring_test, params_test, batch_size=test_batch_size, test=True, shuffle_block_size=shuffle_block_size)
+        
+        return train, test
         
     def get_dataset(self, x, t, shuffle_block_size=2**14, batch_size=1024, test=False):
         '''

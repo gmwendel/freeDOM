@@ -201,6 +201,70 @@ class stringnet_trafo(tf.keras.layers.Layer):
                 )    
             
         return out
+
+class superstringnet_trafo(tf.keras.layers.Layer):
+    '''Class to transfor inputs for superstringnet
+    '''
+    
+    def __init__(self, labels, min_energy=0.1, max_energy=1e4):
+        '''
+        Parameters:
+        -----------
+
+        labels : list
+            list of labels corresponding to the data array
+        '''
+        
+        super().__init__()
+
+        self.labels = labels
+        self.min_energy = min_energy
+        self.max_energy = max_energy
+        
+        self.azimuth_idx = labels.index('azimuth')
+        self.zenith_idx = labels.index('zenith')
+        self.x_idx = labels.index('x')
+        self.y_idx = labels.index('y')
+        self.z_idx = labels.index('z')
+        self.cascade_energy_idx = labels.index('cascade_energy')
+        self.track_energy_idx = labels.index('track_energy')
+        
+    def get_config(self):
+        return {'labels': self.labels, 'min_energy': self.min_energy, 'max_energy': self.max_energy}
+
+    def call(self, superstring, params):
+        '''
+        Parameters:
+        -----------
+
+        superstring : tensor
+            shape (N, 86), containing charge of each of the 86 strings during an event
+
+        params : tensor
+            shape (N, len(labels))
+
+        '''
+
+        cascade_energy = tf.math.log(tf.clip_by_value(params[:, self.cascade_energy_idx], self.min_energy, self.max_energy))
+        track_energy = tf.math.log(tf.clip_by_value(params[:, self.track_energy_idx], self.min_energy, self.max_energy))
+        
+        #format vectors for superstringnet
+        out=[]
+        
+        for i in range(0,len(superstring[0])):
+            out.append(superstring[:,i])
+            
+        out.append(params[:, self.zenith_idx])
+        out.append(params[:, self.azimuth_idx])
+        out.append(params[:, self.x_idx])
+        out.append(params[:, self.y_idx])
+        out.append(params[:, self.z_idx])
+        out.append(cascade_energy)
+        out.append(track_energy)
+        
+        out = tf.stack(out,axis=1)    
+            
+        return out    
     
 class layernet_trafo(tf.keras.layers.Layer):
     '''Class to transfor inputs for layernet

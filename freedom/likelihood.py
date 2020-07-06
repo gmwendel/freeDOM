@@ -1,17 +1,19 @@
 import tensorflow as tf
 import numpy as np
 
-from freedom.neural_nets.transformations import chargenet_trafo, hitnet_trafo, stringnet_trafo, layernet_trafo
+from freedom.neural_nets.transformations import chargenet_trafo, hitnet_trafo, stringnet_trafo, superstringnet_trafo, layernet_trafo
 
 class LLH():
     def __init__(self,
                  hitnet_file,
                  chargenet_file=None,
                  stringnet_file=None,
+                 superstringnet_file=None,
                  layernet_file=None,
                  chargenet_batchsize=4096,
                  hitnet_batchsize=4096,
                  stringnet_batchsize=4096,
+                 superstringnet_batchsize=4096,
                  layernet_batchsize=4096
                  ):
         '''
@@ -21,6 +23,8 @@ class LLH():
             location of ChargeNet model hdf5 file
         stringnet_file : str
             location of  StringNet model hdf5 file
+        superstringnet_file : str
+            location of  SuperStringNet model hdf5 file
         layernet_file : str
             location of  LayerNet model hdf5 file
         chargenet_batchsize : int
@@ -29,7 +33,7 @@ class LLH():
         layernet_batchsize : int
         '''
         
-        assert (chargenet_file is None) + (stringnet_file is None) + (layernet_file is None) == 2, 'Choose either chargenet OR stringnet OR layernet'
+        assert (chargenet_file is None) + (stringnet_file is None) + (superstringnet_file is None) + (layernet_file is None) == 2, 'Choose either chargenet OR stringnet OR layernet'
 
         self.hitnet = tf.keras.models.load_model(hitnet_file, custom_objects={'hitnet_trafo':hitnet_trafo})
         # set to linear output = logit
@@ -50,6 +54,15 @@ class LLH():
             self.chargenet = None
             self.layernet = None
             
+        elif superstringnet_file is not None:
+            self.superstringnet = tf.keras.models.load_model(
+                superstringnet_file, custom_objects={'superstringnet_trafo':superstringnet_trafo}
+            )
+            self.superstringnet.layers[-1].activation = tf.keras.activations.linear
+            self.superstringnet.compile()
+            self.chargenet = None
+            self.layernet = None
+            
         else:
             self.layernet = tf.keras.models.load_model(layernet_file, custom_objects={'layernet_trafo':layernet_trafo})
             self.layernet.layers[-1].activation = tf.keras.activations.linear
@@ -60,6 +73,7 @@ class LLH():
         self.chargenet_batchsize = chargenet_batchsize
         self.hitnet_batchsize = hitnet_batchsize
         self.stringnet_batchsize = stringnet_batchsize
+        self.superstringnet_batchsize = superstringnet_batchsize
         self.layernet_batchsize = layernet_batchsize
         
     def __call__(self, event, params):
@@ -101,6 +115,12 @@ class LLH():
 
             charge_llhs = -self.stringnet.predict(inputs, batch_size=self.stringnet_batchsize).reshape(86, n_points)
             charge_llh = np.sum(charge_llhs, axis=0)
+        elif self.superstringnet is not None:
+            inputs = []
+            superstring=strings[0:86,3]
+            inputs.append(np.tile(superstring,(n_points,1)))
+            inputs.append(params)
+            charge_llh = -self.superstringnet.predict(inputs, batch_size=self.stringnet_batchsize)
         else:
             n_layers = len(event['layers'])
             inputs = []
