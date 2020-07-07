@@ -22,7 +22,7 @@ import tensorflow as tf
 import zmq
 
 from freedom.neural_nets.transformations import chargenet_trafo, hitnet_trafo
-from freedom.neural_nets.transformations import stringnet_trafo, layernet_trafo
+from freedom.neural_nets.transformations import stringnet_trafo, layernet_trafo, superstringnet_trafo
 from freedom.llh_service import llh_cython
 from freedom.llh_service import eval_llh
 
@@ -92,6 +92,7 @@ class LLHService:
         hitnet_file=None,
         chargenet_file=None,
         stringnet_file=None,
+        superstringnet_file=None,
         layernet_file=None,
         router_mandatory=False,
         bypass_tensorflow=False,
@@ -100,11 +101,9 @@ class LLHService:
         n_layers=60,
         features_per_layer=4,
     ):
-        if (chargenet_file is None) + (stringnet_file is None) + (
-            layernet_file is None
-        ) != 2:
+        if (chargenet_file is None) + (stringnet_file is None) + (layernet_file is None) + (superstringnet_file is None) != 3:
             raise RuntimeError(
-                "You must select exactly one of chargenet, stringnet, or layernet."
+                "You must select exactly one of chargenet, stringnet, superstringnet, or layernet."
             )
 
         self._work_reqs = []
@@ -164,7 +163,15 @@ class LLHService:
                 chargenet = eval_llh.wrap_partial_chargenet(
                     stringnet, n_hypo_params, n_strings, features_per_string
                 )
-
+                
+            elif superstringnet_file is not None:
+                superstringnet_file = self._get_model_path(superstringnet_file)
+                superstringnet = tf.keras.models.load_model(
+                    superstringnet_file, custom_objects={"superstringnet_trafo": superstringnet_trafo}
+                )
+                superstringnet.layers[-1].activation = tf.keras.activations.linear
+                chargenet=superstringnet
+                
             elif layernet_file is not None:
                 layernet_file = self._get_model_path(layernet_file)
                 layernet = tf.keras.models.load_model(

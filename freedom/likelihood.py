@@ -33,7 +33,7 @@ class LLH():
         layernet_batchsize : int
         '''
         
-        assert (chargenet_file is None) + (stringnet_file is None) + (superstringnet_file is None) + (layernet_file is None) == 2, 'Choose either chargenet OR stringnet OR layernet'
+        assert (chargenet_file is None) + (stringnet_file is None) + (superstringnet_file is None) + (layernet_file is None) == 3, 'Choose either chargenet OR stringnet OR layernet'
 
         self.hitnet = tf.keras.models.load_model(hitnet_file, custom_objects={'hitnet_trafo':hitnet_trafo})
         # set to linear output = logit
